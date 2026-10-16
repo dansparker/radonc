@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="de" data-edition="basic">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LQ-Rechner Radioonkologie</title>
+<meta name="description" content="LQ-Rechner für die Radioonkologie: BED, EQD2, Isoeffekt, Summation, Zeitfaktor, unvollständige Reparatur, LDR/PDR/HDR-Brachytherapie, Re-Bestrahlung, DVH→EQD2, TCP/NTCP, Toleranzen und Pausenkompensation mit Kalender.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b6e8f'/%3E%3Cpath d='M6 25 Q14 24 18 15 T27 6' stroke='white' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css?v=20261016c">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <h1>LQ-Rechner</h1>
+      <span>BED · EQD2 · Brachy · Re-RT · DVH · TCP/NTCP · Pausen</span>
+    </div>
+    <div class="top-actions">
+      <button class="btn small" id="btn-share" title="Aktuelle Eingaben als Link kopieren">Link kopieren</button>
+      <button class="btn small" id="btn-reset" title="Alle Eingaben auf Standardwerte zurücksetzen">Zurücksetzen</button>
+      <button class="btn small" id="btn-print" title="Aktuelle Ansicht drucken / als PDF speichern">Drucken</button>
+      <button class="btn small" id="btn-lang">EN</button>
+      <button class="btn small" id="btn-theme" title="Hell/Dunkel umschalten">◐</button>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="calc" aria-selected="true">Rechner</button>
+    <button role="tab" data-tab="iso">Umrechnung</button>
+    <button role="tab" data-tab="ref">α/β &amp; Methodik</button>
+  </nav>
+</header>
+
+<main>
+<!-- ======================= RECHNER ======================= -->
+<section class="panel active" id="panel-calc" role="tabpanel">
+  <p class="lead">Zwei von drei Werten (Einzeldosis, Fraktionen, Gesamtdosis) eingeben – der dritte wird berechnet (blau hinterlegt). Dezimalkomma oder -punkt sind möglich.</p>
+  <div class="grid two">
+    <div class="stack">
+      <div class="card">
+        <h2>Schema</h2>
+        <div class="fields">
+          <div class="field"><label for="c-d">Einzeldosis d</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-d" value="2"><span class="unit">Gy</span></div></div>
+          <div class="field"><label for="c-n">Fraktionen n</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-n" value="35"><span class="unit">Fx</span></div></div>
+          <div class="field"><label for="c-D">Gesamtdosis D</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-D" value="70"><span class="unit">Gy</span></div></div>
+        </div>
+        <h3>Gewebe</h3>
+        <div class="fields">
+          <div class="field" style="grid-column: span 2"><label for="c-preset">Voreinstellung</label>
+            <select id="c-preset" class="ab-preset" data-target="c-ab"></select></div>
+          <div class="field"><label for="c-ab">α/β</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-ab" value="10"><span class="unit">Gy</span></div></div>
+          <div class="field"><label for="c-x">EQDx: Referenz-x</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-x" value="2"><span class="unit">Gy</span></div>
+            <span class="hint">z. B. 0 → EQD0 = BED</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Erweiterte Modelle</h2>
+        <label class="check"><input type="checkbox" id="c-time"> Zeitfaktor (Repopulierung) berücksichtigen</label>
+        <div class="subbox" id="c-time-box" hidden>
+          <div class="fields">
+            <div class="field" style="grid-column: span 2"><label for="c-rep">Repopulation – Voreinstellung</label>
+              <select id="c-rep" class="rep-preset" data-tk="c-tk" data-dp="c-dp"></select></div>
+            <div class="field"><label for="c-tk">Kickoff T<sub>k</sub></label>
+              <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-tk" value="21"><span class="unit">d</span></div></div>
+            <div class="field"><label for="c-dp">D<sub>prolif</sub></label>
+              <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-dp" value="0.9"><span class="unit">Gy/d</span></div>
+              <span class="hint">EQD2-Gy pro Tag</span></div>
+            <div class="field"><label for="c-fxw">Behandlungstage/Woche</label>
+              <input type="text" inputmode="decimal" class="num" id="c-fxw" value="5"></div>
+            <div class="field"><label for="c-T">Gesamtzeit T</label>
+              <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-T" placeholder="auto"><span class="unit">d</span></div>
+              <span class="hint" id="c-T-hint"></span></div>
+          </div>
+        </div>
+        <label class="check" style="margin-top:12px"><input type="checkbox" id="c-bid"> <span>2× täglich (unvollständige Reparatur zwischen den Fraktionen)</span></label>
+        <div class="subbox" id="c-bid-box" hidden>
+          <div class="fields">
+            <div class="field"><label for="c-dt">Intervall Δt</label>
+              <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-dt" value="6"><span class="unit">h</span></div></div>
+            <div class="field" style="grid-column: span 2"><label for="c-thp">Reparatur-T½ – Voreinstellung</label>
+              <select id="c-thp" class="th-preset" data-target="c-th"></select></div>
+            <div class="field"><label for="c-th">Reparatur-T½</label>
+              <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-th" value="1.5"><span class="unit">h</span></div></div>
+          </div>
+          <p class="note">Maximal 2 Fraktionen pro Tag. Je Tag mit 2 Fx erhöht sich die BED um 2·θ·d²/(α/β), θ = e<sup>−ln2·Δt/T½</sup> (Thames). Die Gesamtzeit für den Zeitfaktor wird mit 2 Fx/Tag berechnet.</p>
+        </div>
+        <label class="check" style="margin-top:12px"><input type="checkbox" id="c-lql"> <span>LQ-L-Modell (linear oberhalb d<sub>T</sub>, für Hypofraktionierung/SBRT)</span></label>
+        <div class="subbox" id="c-lql-box" hidden>
+          <div class="fields">
+            <div class="field"><label for="c-dT">Transitionsdosis d<sub>T</sub></label>
+              <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-dT" value="6"><span class="unit">Gy</span></div></div>
+          </div>
+          <p class="note">Astrahan 2008: Oberhalb d<sub>T</sub> steigt die BED pro Fraktion nur noch linear mit Steigung 1 + 2·d<sub>T</sub>/(α/β). Literaturwerte für d<sub>T</sub> meist 5–10 Gy.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Unsicherheit</h2>
+        <label class="check"><input type="checkbox" id="c-unc"> <span>Ergebnisbereich über unsichere Parameter berechnen</span></label>
+        <div class="subbox" id="c-unc-box" hidden>
+          <div class="fields wide">
+            <div class="field"><label for="c-ablo">α/β von – bis</label><div class="range-pair"><div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-ablo" placeholder="auto"><span class="unit">Gy</span></div><span>–</span><div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-abhi" placeholder="auto"><span class="unit">Gy</span></div></div></div>
+            <div id="c-unc-time" class="contents"><div class="field"><label for="c-tklo">T<sub>k</sub> von – bis</label><div class="range-pair"><div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-tklo" placeholder="auto"><span class="unit">d</span></div><span>–</span><div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-tkhi" placeholder="auto"><span class="unit">d</span></div></div></div><div class="field"><label for="c-dplo">D<sub>prolif</sub> von – bis</label><div class="range-pair"><div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-dplo" placeholder="auto"><span class="unit">Gy/d</span></div><span>–</span><div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-dphi" placeholder="auto"><span class="unit">Gy/d</span></div></div></div></div>
+            <div id="c-unc-bid" class="contents"><div class="field"><label for="c-thlo">Reparatur-T½ von – bis</label><div class="range-pair"><div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-thlo" placeholder="auto"><span class="unit">h</span></div><span>–</span><div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-thhi" placeholder="auto"><span class="unit">h</span></div></div></div></div>
+            <div id="c-unc-lql" class="contents"><div class="field"><label for="c-dTlo">d<sub>T</sub> von – bis</label><div class="range-pair"><div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-dTlo" placeholder="auto"><span class="unit">Gy</span></div><span>–</span><div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-dThi" placeholder="auto"><span class="unit">Gy</span></div></div></div></div>
+          </div>
+          <p class="note">Leere Felder = automatisch: α/β aus dem Literaturbereich der Voreinstellung bzw. ±30 %, T<sub>k</sub> ±7 d, D<sub>prolif</sub> ±0,2 Gy/d, T½ ×⅔–1,5, d<sub>T</sub> ±2 Gy. Der Bereich wird per Gittersuche über alle Kombinationen bestimmt.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <h2>Ergebnis</h2>
+        <div class="results" id="c-results"></div>
+        <div id="c-tornado"></div>
+        <div id="c-msg"></div>
+      </div>
+      <div class="card">
+        <h2>Gleiches Schema – verschiedene α/β</h2>
+        <div class="table-scroll"><table class="data" id="c-abtable"></table></div>
+      </div>
+      <div class="card">
+        <h2>Isoeffekt-Kurve</h2>
+        <div class="fields" style="margin-bottom:8px">
+          <div class="field"><label for="c-ab2">Vergleichs-α/β</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="c-ab2" value="3"><span class="unit">Gy</span></div></div>
+        </div>
+        <svg class="plot" id="c-plot" viewBox="0 0 560 300" role="img" aria-label="Isoeffektive Gesamtdosis in Abhängigkeit von der Einzeldosis"></svg>
+        <div class="legend" id="c-legend"></div>
+        <p class="note">Gesamtdosis, die bei der jeweiligen Einzeldosis denselben Effekt (gleiche BED, ohne Zeitfaktor) wie das eingegebene Schema erzielt. Die steilere Kurve (niedriges α/β) zeigt die höhere Fraktionierungsempfindlichkeit.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= UMRECHNUNG ======================= -->
+<section class="panel" id="panel-iso" role="tabpanel">
+  <p class="lead">Isoeffektive Umrechnung zwischen Fraktionierungsschemata (gleiche BED für das gewählte Gewebe) und Vorschlagstabelle für eine Ziel-EQD2 – jeweils mit Auswirkung auf ein zweites Gewebe.</p>
+  <div class="grid two">
+    <div class="stack">
+      <div class="card">
+        <h2>Ausgangsschema</h2>
+        <div class="fields">
+          <div class="field"><label for="i-d">Einzeldosis d₁</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="i-d" value="2"><span class="unit">Gy</span></div></div>
+          <div class="field"><label for="i-n">Fraktionen n₁</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="i-n" value="39"><span class="unit">Fx</span></div></div>
+          <div class="field"><label>Gesamtdosis D₁</label>
+            <div class="unit-wrap"><input type="text" class="num computed" id="i-D" readonly tabindex="-1"><span class="unit">Gy</span></div></div>
+        </div>
+        <h3>Gewebe</h3>
+        <div class="fields">
+          <div class="field" style="grid-column: span 2"><label for="i-preset">Zielgewebe (isoeffektiv)</label>
+            <select id="i-preset" class="ab-preset" data-target="i-ab"></select></div>
+          <div class="field"><label for="i-ab">α/β Ziel</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="i-ab" value="1.5"><span class="unit">Gy</span></div></div>
+          <div class="field" style="grid-column: span 2"><label for="i-preset2">Vergleichsgewebe</label>
+            <select id="i-preset2" class="ab-preset" data-target="i-ab2"></select></div>
+          <div class="field"><label for="i-ab2">α/β Vergleich</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="i-ab2" value="3"><span class="unit">Gy</span></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Neues Schema</h2>
+        <div class="fields">
+          <div class="field"><label for="i-d2">Neue Einzeldosis d₂</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="i-d2" value="2.5"><span class="unit">Gy</span></div></div>
+          <div class="field"><label for="i-n2">oder: neue Fraktionen n₂</label>
+            <div class="unit-wrap"><input type="text" inputmode="decimal" class="num" id="i-n2" placeholder="–"><span class="unit">Fx</span></div></div>
+        </div>
+        <p class="note">Ist n₂ angegeben, wird die dazu passende Einzeldosis berechnet; sonst die Gesamtdosis zu d₂.</p>
+        <div id="i-out" style="margin-top:12px"></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h2>Schemata für Ziel-EQD2</h2>
+        <div class="fields">
+          <div class="field"><label for="i-target">Ziel-EQD2 (Zielgewebe)</label>
+            <div class="unit-wrap"><input type="text" class="num" inputmode="decimal" id="i-target" placeholder="aus Ausgangsschema"><span class="unit">Gy</span></div></div>
+          <div class="field" style="grid-column: span 2"><label for="i-dlist">Einzeldosen (Liste)</label>
+            <input type="text" class="num" id="i-dlist" value="1.8; 2; 2.2; 2.5; 2.67; 3; 4; 5; 6; 7.25; 8; 10"></div>
+        </div>
+        <div class="table-scroll" style="margin-top:12px"><table class="data" id="i-table"></table></div>
+        <p class="note">n wird auf ganze Fraktionen gerundet; die Spalten EQD2 zeigen das tatsächlich erreichte Ergebnis nach Rundung. Ohne Zeitfaktor.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= REFERENZ ======================= -->
+<section class="panel" id="panel-ref" role="tabpanel">
+  <div class="grid two">
+    <div class="card">
+      <h2>Typische α/β-Werte</h2>
+      <p class="note" style="margin-top:0">Richtwerte aus der Literatur; die Konfidenzintervalle sind oft groß. Klick auf eine Zeile übernimmt den Wert in den Rechner.</p>
+      <div class="table-scroll"><table class="data" id="r-abtable"></table></div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h2>Formeln</h2>
+<div class="formula">BED   = n·d·(1 + d/(α/β)) − K·max(0, T − T<sub>k</sub>)
+EQDx  = BED / (1 + x/(α/β))          EQD2: x = 2 Gy
+K     = D<sub>prolif</sub>·(1 + 2/(α/β))       [BED-Gy/<span>Tag</span>]
+      = ln2 / (α·T<sub>pot</sub>)
+
+<span>Isoeffekt (Withers):</span>
+D₂    = D₁·(α/β + d₁) / (α/β + d₂)
+
+LQ-L (Astrahan), d &gt; d<sub>T</sub>:
+BED/Fx = d<sub>T</sub>(1 + d<sub>T</sub>/(α/β)) + (1 + 2d<sub>T</sub>/(α/β))·(d − d<sub>T</sub>)
+
+<span>Unvollständige Reparatur, 2 Fx/Tag (Thames):</span>
+ΔBED  = 2·θ·d²/(α/β) <span>je Tag</span>,   θ = exp(−ln2·Δt/T½)
+
+<span>Protrahiert (LDR/PDR, Dale):</span>
+BED   = D + (2/(α/β))·∬<sub>t'&lt;t</sub> R(t)R(t')·e<sup>−μ(t−t')</sup> dt' dt,  μ = ln2/T½
+LDR:  BED = D·[1 + 2R/(μ·α/β)·(1 − (1 − e<sup>−μT</sup>)/(μT))]
+
+gEUD  = (Σ v<sub>i</sub>·D<sub>i</sub><sup>1/n</sup>)<sup>n</sup>
+NTCP  = Φ((gEUD − TD<sub>50</sub>)/(m·TD<sub>50</sub>))          (LKB)
+TCP   = ⟨exp(−N<sub>0</sub>·e<sup>−α·BED</sup>)⟩<sub>α ~ N(ᾱ, σ)</sub>      (Poisson-LQ)
+TCP   = exp(−exp(e·γ<sub>50</sub> − D/D<sub>50</sub>·(e·γ<sub>50</sub> − ln ln 2)))</div>
+        <p class="note">T = Tage vom ersten bis zum letzten Bestrahlungstag. Automatisch berechnet bei Start am Montag und aufeinanderfolgenden Werktagen. Der Zeitfaktor wird nur für Gewebe mit relevanter Repopulierung (Tumor, akut reagierendes Gewebe) angewendet – nicht für spät reagierende Normalgewebe.</p>
+      </div>
+      <div class="card">
+        <h2>Zweckbestimmung</h2>
+        <p style="margin:0;font-size:14px">Lehr- und Ausbildungswerkzeug zur Radiobiologie (LQ-Modell). Nicht für Diagnose oder Therapieentscheidungen bestimmt; Ergebnisse ersetzen keine ärztliche oder medizinphysikalische Prüfung.</p>
+        <p class="note"><a href="datenschutz.html" target="_blank" rel="noopener">Datenschutz</a></p>
+      </div>
+      <div class="card">
+        <h2>Grenzen des Modells</h2>
+        <ul style="margin:0; padding-left:20px; font-size:14px">
+          <li>Das LQ-Modell ist für ca. 1–8 Gy pro Fraktion gut validiert; bei SBRT/Radiochirurgie (&gt; 8–10 Gy) wird die Wirkung eher überschätzt → LQ-L erwägen.</li>
+          <li>Vollständige Reparatur zwischen Fraktionen angenommen, außer bei aktivierter 2×-täglich-Option bzw. LDR/PDR. Reparaturhalbwertszeiten sind unsicher, teils biexponentiell (v. a. ZNS).</li>
+          <li>Erholungsmodelle für Re-Bestrahlung beruhen überwiegend auf Tierdaten und kleinen Fallserien.</li>
+          <li>TCP/NTCP-Parameter sind populationsbasiert und gelten nur für die Endpunkte und Techniken der Ursprungsdaten.</li>
+          <li>Dosis-Inhomogenität: BED/EQD2 gilt für den Dosispunkt; für Volumenaussagen voxelweise Umrechnung des DVH.</li>
+          <li>Repopulationsparameter (T<sub>k</sub>, D<sub>prolif</sub>) sind tumorspezifisch und unsicher.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Literatur</h2>
+        <ol class="ref-list">
+          <li>Fowler JF. The linear-quadratic formula and progress in fractionated radiotherapy. Br J Radiol 1989;62:679–94.</li>
+          <li>Bentzen SM, Dörr W, Gahbauer R, et al. Bioeffect modeling and equieffective dose concepts in radiation oncology – terminology, quantities and units. Radiother Oncol 2012;105:266–8.</li>
+          <li>Withers HR, Taylor JM, Maciejewski B. The hazard of accelerated tumor clonogen repopulation during radiotherapy. Acta Oncol 1988;27:131–46.</li>
+          <li>Astrahan M. Some implications of linear-quadratic-linear radiation dose-response with regard to hypofractionation. Med Phys 2008;35:4161–72.</li>
+          <li>The Royal College of Radiologists. Timely delivery of radical radiotherapy: guidelines for the management of unscheduled treatment interruptions. 4th ed. London: RCR; 2019.</li>
+          <li>Joiner MC, van der Kogel AJ (Hrsg.). Basic Clinical Radiobiology. 5. Aufl. CRC Press; 2018.</li>
+          <li>Marks LB, Yorke ED, Jackson A, et al. Use of normal tissue complication probability models in the clinic (QUANTEC). Int J Radiat Oncol Biol Phys 2010;76(3 Suppl):S10–9.</li>
+          <li>Thames HD. An “incomplete-repair” model for survival after fractionated and continuous irradiations. Int J Radiat Biol 1985;47:319–39.</li>
+          <li>Dale RG. The application of the linear-quadratic dose-effect equation to fractionated and protracted radiotherapy. Br J Radiol 1985;58:515–28.</li>
+          <li>Lyman JT. Complication probability as assessed from dose-volume histograms. Radiat Res Suppl 1985;8:S13–9.</li>
+          <li>Kutcher GJ, Burman C. Calculation of complication probability factors for non-uniform normal tissue irradiation: the effective volume method. Int J Radiat Oncol Biol Phys 1989;16:1623–30.</li>
+          <li>Burman C, Kutcher GJ, Emami B, Goitein M. Fitting of normal tissue tolerance data to an analytic function. Int J Radiat Oncol Biol Phys 1991;21:123–35.</li>
+          <li>Niemierko A. Reporting and analyzing dose distributions: a concept of equivalent uniform dose. Med Phys 1997;24:103–10.</li>
+          <li>Webb S, Nahum AE. A model for calculating tumour control probability in radiotherapy including the effects of inhomogeneous distributions of dose and clonogenic cell density. Phys Med Biol 1993;38:653–66.</li>
+          <li>Okunieff P, Morgan D, Niemierko A, Suit HD. Radiation dose-response of human tumors. Int J Radiat Oncol Biol Phys 1995;32:1227–37.</li>
+          <li>Benedict SH, Yenice KM, Followill D, et al. Stereotactic body radiation therapy: the report of AAPM Task Group 101. Med Phys 2010;37:4078–101.</li>
+          <li>Nieder C, Grosu AL, Andratschke NH, Molls M. Update of human spinal cord reirradiation tolerance based on additional data from 38 patients. Int J Radiat Oncol Biol Phys 2006;66:1446–9.</li>
+          <li>Ang KK, Jiang GL, Feng Y, et al. Extent and kinetics of recovery of occult spinal cord injury. Int J Radiat Oncol Biol Phys 2001;50:1013–20.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/i18n.js?v=20261016c"></script>
+<script src="js/lang-en.js?v=20261016c"></script>
+<script src="js/lq.js?v=20261016c"></script>
+<script src="js/data.js?v=20261016c"></script>
+<script src="js/app.js?v=20261016c"></script>
+<script src="js/edition.js?v=20261016c"></script>
+</body>
+</html>
